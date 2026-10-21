@@ -504,7 +504,7 @@ class FinishWithoutClaude(unittest.TestCase):
     def test_codex_set_up_without_claude_still_lists_git_and_herdr(self):
         self.tools(codex=True)
         _, code, rows = self.finish("git", "herdr", *ONLY_CLAUDE)
-        self.assertEqual((code, [r.split(":")[0] for r in rows]), (0, ["  git", "  herdr", "run compose setup in a terminal to finish"]))
+        self.assertEqual((code, [r.split(":")[0] for r in rows]), (0, ["  git", "  herdr"]))
 
     def test_without_claude_and_codex_not_set_up_finish_stops(self):
         for tools in ({}, {"codex": True, "link": False}, {"link": True}):  # the binary or the link alone is not set up
