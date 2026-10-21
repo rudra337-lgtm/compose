@@ -215,16 +215,24 @@ class CodexCommandsRow(unittest.TestCase):
         self.assertEqual(self.run_row(dry=True), ("would", "would write ~/.codex/skills/compose-planner/SKILL.md; would write ~/.codex/skills/compose-yolo/SKILL.md"))
         self.assertFalse((self.home / ".codex").exists())
 
-    def test_a_refused_copy_fails_the_step_with_the_writer_line(self):
-        self.codex(); self.planner.mkdir(parents=True)
-        state, line = self.run_row()
-        self.assertEqual(state, "failed")
-        self.assertIn("refused ~/.codex/skills/compose-planner/SKILL.md", line)
+    def test_every_harness_row_gets_its_own_commands_row_after_its_skill_link_row(self):
+        (self.bin / "other").write_text("#!/bin/sh\n"); (self.bin / "other").chmod(stat.S_IRWXU)
+        self.addCleanup(lambda: [importlib.reload(m) for m in (fc_steps, fc_steprun)])
+        p = mock.patch.dict(fc_harness.HARNESSES, {"other": {**fc_harness.HARNESSES["codex"], "name": "Other", "exe": "other", "home_env": "OTHER_HOME", "home": "~/.other"}})
+        p.start(); self.addCleanup(p.stop)
+        for m in (fc_steps, fc_steprun): importlib.reload(m)
+        names = [r[0] for r in fc_steps.STEPS]; i = names.index("Other commands")
+        self.assertEqual(names[i - 1], "Other skill link")
+        row = fc_steps.STEPS[i]; self.assertEqual(row[2:], ("compose setup", "default", False, "write"))
+        self.assertEqual(fc_steprun.run_step(row, self.co, True, False, False)[0], "done")
+        self.assertEqual((self.home / ".other/skills/compose-yolo/SKILL.md").read_bytes(), (self.co / "commands/yolo.md").read_bytes())
+        self.assertFalse((self.home / ".codex").exists())
+        self.assertEqual(set(fc_steprun.WRITERS), set(fc_steprun.PREVIEWS))
 
     def test_doctor_lists_the_first_missing_copy_as_optional(self):
         self.codex(); out = io.StringIO()
         with contextlib.redirect_stdout(out): fc_init.check_deps()
-        self.assertIn("MISSING: Codex commands: ~/.codex/skills/compose-designer/SKILL.md is missing (install: compose setup) - optional\n", out.getvalue())
+        self.assertIn("MISSING: Codex commands: ~/.codex/skills/compose-away/SKILL.md is missing (install: compose setup) - optional\n", out.getvalue())
 
 
 class HarnessBlock(unittest.TestCase):
