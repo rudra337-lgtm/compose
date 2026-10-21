@@ -13,29 +13,21 @@ fc = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(fc)
 
 
 class CodexIds(unittest.TestCase):
-    def test_reserved(self):
-        self.assertEqual(fc_harness.RESERVED, ("codex", "gemini"))
-
-    def test_ids(self):
-        for model, is_codex, cid in [("codex", True, None), ("codex:", True, None), ("codex:gpt-6-sol", True, "gpt-6-sol"), ("codex:a:b", True, "a:b"),
-                                     ("codex/gpt-6-sol", False, None), ("codexx", False, None), ("claude:opus", False, None), ("pi:x/y", False, None), ("", False, None), (None, False, None)]:
-            with self.subTest(model=model):
-                self.assertIs(fc_harness.is_codex(model), is_codex)
-                self.assertEqual(fc_harness.codex_id(model), cid)
-
     def test_probe_command(self):
         head, prompt = ["codex", "exec", "--ephemeral", "--skip-git-repo-check"], "Reply with exactly: ok"
         self.assertEqual(fc_harness.probe_command("codex:gpt-6-sol"), head + ["-m", "gpt-6-sol", prompt])
+        self.assertEqual(fc_harness.probe_command("codex:a:b"), head + ["-m", "a:b", prompt])
         for model in ("codex", "codex:"): self.assertEqual(fc_harness.probe_command(model), head + [prompt])
 
     def test_probe_result(self):
-        def result(code, out, err): return fc_harness.probe_result(subprocess.CompletedProcess([], code, out, err))
+        def result(code, out, err, model="codex:gpt-6-sol"): return fc_harness.probe_result(model, subprocess.CompletedProcess([], code, out, err))
         refused = 'ERROR: {"type":"error","status":400,"error":{"type":"invalid_request_error","message":"The \'x\' model is not supported."}}'
         self.assertEqual(result(0, "", "ERROR: noise"), (True, "answered"))
+        self.assertEqual(result(0, "", "", "codex"), (True, "answered"))
         self.assertEqual(result(1, "", "warn\n" + refused + "\n"), (False, "The 'x' model is not supported."))
-        self.assertEqual(result(1, "", "ERROR: unexpected status 401 Unauthorized: no key\n"), (False, "unexpected status 401 Unauthorized: no key"))
+        self.assertEqual(result(1, "", "ERROR: unexpected status 401 Unauthorized: no key\n", "codex"), (False, "unexpected status 401 Unauthorized: no key"))
         self.assertEqual(result(1, "", "ERROR: first\nERROR: second\n"), (False, "first"))
-        self.assertEqual(result(1, "out\n", "noise\nlast\n\n"), (False, "last"))
+        self.assertEqual(result(1, "out\n", "x ERROR: not first\nlast\n\n"), (False, "last"))
         self.assertEqual(result(1, "a\nb\n\n", " \n"), (False, "b"))
         self.assertEqual(result(3, "", ""), (False, "exit 3"))
 
