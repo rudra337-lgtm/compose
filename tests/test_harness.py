@@ -108,3 +108,64 @@ class CodexSkillRow(unittest.TestCase):
         self.codex(); out = io.StringIO()
         with contextlib.redirect_stdout(out): fc_init.check_deps()
         self.assertIn("MISSING: Codex skill link: ~/.codex/skills/compose is missing (install: compose setup) - optional\n", out.getvalue())
+
+
+class CodexCommands(unittest.TestCase):
+    def setUp(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.bin, self.home, self.co = tmp / "bin", tmp / "home", tmp / "co"
+        for d in (self.bin, self.home, self.co / "commands"): d.mkdir(parents=True)
+        p = mock.patch.dict(os.environ, {"PATH": str(self.bin), "HOME": str(self.home)}); p.start(); self.addCleanup(p.stop)
+        os.environ.pop("CODEX_HOME", None)
+        for n in ("yolo", "planner"): (self.co / f"commands/{n}.md").write_bytes(f"# {n}\r\nRun $ARGUMENTS \xe9\n".encode())
+        s = self.home / ".codex/skills"
+        self.planner, self.yolo = s / "compose-planner/SKILL.md", s / "compose-yolo/SKILL.md"
+
+    def codex(self):
+        (self.bin / "codex").write_text("#!/bin/sh\n"); (self.bin / "codex").chmod(stat.S_IRWXU)
+
+    def test_without_codex_nothing_is_listed_checked_or_created(self):
+        self.assertEqual(fc_checks.codex_command_copies(self.co), [])
+        self.assertEqual(fc_checks.codex_commands_ok(self.co), (True, ""))
+        fc_links.relink_owned(self.co)
+        self.assertFalse((self.home / ".codex").exists())
+
+    def test_one_copy_per_command_sorted_by_name(self):
+        self.codex()
+        self.assertEqual(fc_checks.codex_command_copies(self.co), [(self.planner, self.co / "commands/planner.md"), (self.yolo, self.co / "commands/yolo.md")])
+
+    def test_check_names_the_first_missing_or_stale_copy(self):
+        self.codex()
+        self.assertEqual(fc_checks.codex_commands_ok(self.co), (False, "~/.codex/skills/compose-planner/SKILL.md is missing"))
+        fc_links.write_codex_commands(self.co)
+        self.assertEqual(fc_checks.codex_commands_ok(self.co), (True, ""))
+        self.yolo.write_bytes(b"old")
+        self.assertEqual(fc_checks.codex_commands_ok(self.co), (False, "~/.codex/skills/compose-yolo/SKILL.md is stale"))
+
+    def test_write_copies_bytes_then_a_second_write_changes_nothing(self):
+        self.codex()
+        first = fc_links.write_codex_commands(self.co)
+        self.assertEqual(first, [f"wrote {self.planner}", f"wrote {self.yolo}"])
+        self.assertEqual(self.planner.read_bytes(), (self.co / "commands/planner.md").read_bytes())
+        self.assertEqual(self.yolo.read_bytes(), (self.co / "commands/yolo.md").read_bytes())
+        self.assertEqual(fc_links.write_codex_commands(self.co), [f"ok {self.planner}", f"ok {self.yolo}"])
+
+    def test_write_replaces_a_stale_copy(self):
+        self.codex(); self.yolo.parent.mkdir(parents=True); self.yolo.write_bytes(b"old")
+        self.assertEqual(fc_links.write_codex_commands(self.co)[1], f"wrote {self.yolo}")
+        self.assertEqual(self.yolo.read_bytes(), (self.co / "commands/yolo.md").read_bytes())
+
+    def test_a_symlink_or_directory_is_refused_untouched(self):
+        self.codex(); other = self.home / "other.md"; other.write_bytes(b"mine")
+        self.planner.parent.mkdir(parents=True); self.planner.symlink_to(other)
+        self.yolo.mkdir(parents=True)
+        lines = fc_links.write_codex_commands(self.co)
+        self.assertTrue(lines[0].startswith(f"refused {self.planner}: ") and lines[1].startswith(f"refused {self.yolo}: "))
+        self.assertEqual((os.readlink(self.planner), other.read_bytes()), (str(other), b"mine"))
+        self.assertTrue(self.yolo.is_dir() and not any(self.yolo.iterdir()))
+
+    def test_relink_ends_with_one_codex_commands_line_per_copy(self):
+        self.codex()
+        lines = fc_links.relink_owned(self.co)
+        self.assertEqual(lines[-2:], [f"Codex commands: wrote {self.planner}", f"Codex commands: wrote {self.yolo}"])
+        self.assertEqual(fc_links.relink_owned(self.co)[-2:], [f"Codex commands: ok {self.planner}", f"Codex commands: ok {self.yolo}"])
