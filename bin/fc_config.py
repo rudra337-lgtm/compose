@@ -56,6 +56,7 @@ PLANNING_ROLES = ("wayfinder",)  # the product owner and the engineering manager
 CREW_DEFAULTS = {"designer": ("claude:claude-opus-5-5", "high")}  # role -> (model, effort) used when models.crew has no entry for it
 PROBE_CACHE = CONFIG_PATH.parent / "model-probe.json"
 PROVIDERS = {}  # name -> the active settings' providers entry (base URL, optional models list), set by apply_config
+HARNESS = None  # the session's harness, set by apply_config; its block under "harnesses" picks the crew's models
 
 
 def read_config():
@@ -66,7 +67,10 @@ def write_config(cfg):
     fc_core.atomic_write(CONFIG_PATH, json.dumps(cfg, indent=2) + "\n", keep_secrets=True)  # a config env's *_API_KEY stays as it is
     CONFIG_PATH.chmod(0o600)  # settings stay private
 
-def settings(cfg):
+def session_harness(flag=None):
+    raise NotImplementedError
+
+def settings(cfg, harness=None):
     """The active workspace's settings: the top level with the workspace's entry merged over it, one level deep."""
     name = cfg.get("workspace") or "default"
     if name != "default" and name not in cfg.get("workspaces", {}):
@@ -77,7 +81,7 @@ def settings(cfg):
         out[k] = {**out[k], **v} if isinstance(v, dict) and isinstance(out.get(k), dict) else v
     return name, out
 
-def apply_config(move=True):
+def apply_config(move=True, harness=None):
     """Point models, keys, and env at the active workspace. Its key wins over the shell and the jev .env, and every
     OpenRouter caller (pi, OpenCode, the Mercury review, jev's e2e text helper) bills to it."""
     global DEFAULT_MODEL, FALLBACK_MODEL, FALLBACK_AFTER, TEST_READER, OPENROUTER_KEY, CREW_MODELS, CREW_EFFORT, CREW_FALLBACK, LINEAR_KEY, WORKSPACE, PARALLEL, CLAUDE_PARALLEL, PROVIDERS
