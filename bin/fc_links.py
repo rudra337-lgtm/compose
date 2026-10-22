@@ -2,7 +2,6 @@
 import json
 import os
 import re
-import tomllib
 from pathlib import Path
 import fc_checks
 import fc_core
@@ -89,8 +88,8 @@ def trust_hooks(key, checkout):
     path = fc_harness.home_dir(key) / fc_harness.HARNESSES[key]["trust_file"]
     text = old = path.read_text() if path.exists() else ""
     try:
-        state = tomllib.loads(text).get("hooks", {}).get("state", {})
-    except tomllib.TOMLDecodeError as e:
+        state = fc_checks.trust_state(text)
+    except ValueError as e:
         raise SystemExit(f"{path}: {e}")
     for _, k, h in fc_checks.hook_records(key, checkout):
         if k is None or state.get(k, {}).get("trusted_hash") == h:
