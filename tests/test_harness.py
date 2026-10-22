@@ -11,6 +11,12 @@ import fc_checks, fc_config, fc_harness, fc_init, fc_links, fc_models, fc_stepru
 _spec = importlib.util.spec_from_loader("fc", importlib.machinery.SourceFileLoader("fc", str(Path(__file__).resolve().parents[1] / "bin" / "compose.py")))
 fc = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(fc)
 
+FC_MODULES = {n: m for n, m in sys.modules.items() if n.startswith("fc_")}
+
+def reload_steps():  # another test file may have dropped or replaced the fc_* modules in sys.modules; reload against the ones imported here
+    with mock.patch.dict(sys.modules, FC_MODULES):
+        for m in (fc_steps, fc_steprun): importlib.reload(m)
+
 
 class CodexIds(unittest.TestCase):
     def test_probe_command(self):
@@ -131,13 +137,14 @@ class CodexSkillRow(unittest.TestCase):
 
     def test_every_harness_row_gets_its_own_skill_link_row(self):
         self.tool(); self.tool("other")
-        self.addCleanup(lambda: [importlib.reload(m) for m in (fc_steps, fc_steprun)])
+        self.addCleanup(reload_steps)
         p = mock.patch.dict(fc_harness.HARNESSES, {"other": {**fc_harness.HARNESSES["codex"], "name": "Other", "exe": "other", "home_env": "OTHER_HOME", "home": "~/.other"}})
         p.start(); self.addCleanup(p.stop)
-        for m in (fc_steps, fc_steprun): importlib.reload(m)
-        names = [r[0] for r in fc_steps.STEPS]; i = names.index(self.NAME)
-        self.assertEqual(names[i - 1:i + 2], ["compose skill link", self.NAME, "Other skill link"])
-        self.assertEqual(self.run_row(fc_steps.STEPS[i + 1])[0], "done")
+        reload_steps()
+        names = [r[0] for r in fc_steps.STEPS]; i = names.index(self.NAME); j = names.index("Other skill link")
+        self.assertEqual(names[i - 1:i + 2], ["compose skill link", self.NAME, "Codex commands"])
+        self.assertGreater(j, i)
+        self.assertEqual(self.run_row(fc_steps.STEPS[j])[0], "done")
         self.assertEqual((self.home / ".other/skills/compose").resolve(), self.co.resolve())
         self.assertFalse(self.link.exists())
         self.assertEqual(set(fc_steprun.WRITERS), set(fc_steprun.PREVIEWS))
@@ -255,10 +262,10 @@ class CodexCommandsRow(unittest.TestCase):
 
     def test_every_harness_row_gets_its_own_commands_row_after_its_skill_link_row(self):
         (self.bin / "other").write_text("#!/bin/sh\n"); (self.bin / "other").chmod(stat.S_IRWXU)
-        self.addCleanup(lambda: [importlib.reload(m) for m in (fc_steps, fc_steprun)])
+        self.addCleanup(reload_steps)
         p = mock.patch.dict(fc_harness.HARNESSES, {"other": {**fc_harness.HARNESSES["codex"], "name": "Other", "exe": "other", "home_env": "OTHER_HOME", "home": "~/.other"}})
         p.start(); self.addCleanup(p.stop)
-        for m in (fc_steps, fc_steprun): importlib.reload(m)
+        reload_steps()
         names = [r[0] for r in fc_steps.STEPS]; i = names.index("Other commands")
         self.assertEqual(names[i - 1], "Other skill link")
         row = fc_steps.STEPS[i]; self.assertEqual(row[2:], ("compose setup", "default", False, "write"))
@@ -1145,10 +1152,10 @@ class CodexHooksRow(unittest.TestCase):
         self.assertFalse((self.home / ".codex").exists())
 
     def test_every_harness_row_with_hooks_gets_its_own_hooks_row_after_its_commands_row(self):
-        self.tool("other"); self.addCleanup(lambda: [importlib.reload(m) for m in (fc_steps, fc_steprun)])
+        self.tool("other"); self.addCleanup(reload_steps)
         p = mock.patch.dict(fc_harness.HARNESSES, {"other": {**fc_harness.HARNESSES["codex"], "name": "Other", "exe": "other", "home_env": "OTHER_HOME", "home": "~/.other"}})
         p.start(); self.addCleanup(p.stop)
-        for m in (fc_steps, fc_steprun): importlib.reload(m)
+        reload_steps()
         names = [r[0] for r in fc_steps.STEPS]; i = names.index("Other hooks")
         self.assertEqual(names[i - 1], "Other commands")
         self.assertEqual(self.run_row(fc_steps.STEPS[i])[0], "done")
