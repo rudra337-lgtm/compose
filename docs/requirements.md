@@ -6,6 +6,7 @@ This page says what each piece is for, and which pieces setup treats as required
 ## Required
 
 `compose doctor` exits 1 while one of these is missing.
+Claude Code is optional when another harness is set up: the claude, herdr skill, i-have-adhd skill and compose skill link rows become optional then ([harnesses.md](harnesses.md)).
 
 | Tool | Needed for | Install |
 |---|---|---|
@@ -39,6 +40,7 @@ Setup installs these unless you skip them.
 | trail | `file:line` context packs for implementers | `npm i -g @trailhq/trail-code` |
 | superpowers plugin | the writing-plans skill (needs Claude Code) | `claude plugin install superpowers@claude-plugins-official` |
 | herdr integrations | herdr shows pi and Claude Code agents' state (the Claude one needs Claude Code) | `herdr integration install pi`, `herdr integration install claude` |
+| Codex | a harness for teammate sessions besides Claude Code; you sign in with `codex login`, and setup links its skill, commands and hooks | `codex login` (setup never signs in for you) |
 | herdr config | herdr's own toasts and sounds stay off | setup writes it ([new-machine.md](new-machine.md#herdr-settings)) |
 | `TEXT_MODEL` lines | the Mercury review and jev's text helper | setup adds them to `~/.compose/.env` when absent |
 | git rerere | stacks that rebase cleanly | `git config --global rerere.enabled true`, set only when unset |
@@ -103,6 +105,7 @@ You need the `gpt-oss-120b-cerebras` preset (model `openai/gpt-oss-120b`, provid
 | `~/.claude.json` | read for folder trust and the user-scope `framelink-figma` MCP server; the local `frame0` MCP server for each teammate's directory is written here |
 | `~/.config/figma-context-mcp/.env` | Framelink's Figma token (mode 600); it never goes on a command line |
 | `~/.pi/agent/` | pi's `models.json` (setup declares `openrouter-fast`), its own `auth.json`, and the herdr extension |
+| `CODEX_HOME` (default `~/.codex`) | Codex's `skills/compose`, `skills/compose-<name>`, `hooks.json` and `config.toml` |
 | `~/.config/herdr/config.toml` | herdr's config: copied from `bin/herdr.toml` when absent, else only the two notification lines are set |
 
 ## Read only when present
@@ -127,6 +130,8 @@ These need no install.
 | `COMPOSE_NO_TRAIL=1` | skip trail |
 | `COMPOSE_TEST_SLOTS=<n>` | how many full-suite `compose timed` commands run at once on this machine (default 2); the next waits for a slot and says so. `COMPOSE_QUICK_SLOTS=<n>` is the same for every other command (`--help`, `uv sync`, or a test run with a `-k`/`-run`/`--grep` filter or one test file or module), in lanes apart from the suites (default 2) |
 | `COMPOSE_NO_HERDR=1` | bare `compose` does not open the herdr session; it prints the usage. Every subcommand runs headless, inside herdr too: no space, tab, pane, or agent |
+| `CODEX_HOME` | where Codex keeps its files; setup writes Codex's skills, hooks and config there |
+| `COMPOSE_HARNESS` | the harness a session uses ([harnesses.md](harnesses.md)) |
 | `COMPOSE_INSTALL_DIR` | where `install.sh` puts the checkout (default `~/.compose/src`) |
 | `COMPOSE_FAKE_402=<provider>` | simulate a billing halt (tests) |
 | `HERDR_ENV=1` with `HERDR_SOCKET_PATH` | marks a session inside herdr |
