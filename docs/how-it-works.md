@@ -39,10 +39,10 @@ Eight roles split the decisions.
 
 | Who | Decides |
 |---|---|
-| Team lead (Claude, frontier) | spec, review of the planner's cut, tests, layer review, escalations; never writes code or merges |
-| Planner (frontier teammate) | the plan, the stories when a feature has none, and the task issues; never writes code |
+| Team lead (frontier; Claude Code, pi or Codex) | spec, review of the planner's cut, tests, layer review, escalations; never writes code or merges |
+| Planner (frontier teammate; Claude Code, pi or Codex) | the plan, the stories when a feature has none, and the task issues; never writes code |
 | Designer (Claude teammate) | design stories and tasks in Figma, built by its own crew; never writes repo files or decides a product question |
-| Fast implementer (GLM 5.3 Flash in pi) | makes one test green in one session; never writes or runs tests |
+| Fast implementer (GLM 5.3 Flash in pi; any model id) | makes one test green in one session; never writes or runs tests |
 | Test reader (Claude Haiku) | reads a failed test run and writes the implementer's short fix brief; never edits or runs anything |
 | Mercury | raises review findings, then confirms or drops them |
 | Jev (TypeSafe) | scores acceptance criteria, drives the browser, screens settled decisions against new evidence |
@@ -190,6 +190,8 @@ Without a fallback, such a turn gets a fresh session after 20 s, then 40 s, 60 s
 A refusal that stays, such as a wrong model id, a missing preset, or a bad key, ends the task, or moves it to the fallback.
 Implementers never run tests: an implementer waiting on a test run pays for the wait, and every later turn re-reads the output as input tokens.
 The CLI runs the test after each turn, and on a failure the test reader (`models.test_reader`, default `claude:claude-haiku-5-5`) writes the implementer's fix brief.
+A team lead or teammate can run in Codex with a `codex:<model>` id, set by the `harnesses.<name>` block of the config.
+[harnesses.md](harnesses.md) lists the harnesses and [config.md](config.md) the `harnesses.<name>` keys.
 
 GLM 5.3 Flash earned that spot on a real seven-task project.
 There, gpt-oss-120b on Cerebras missed the largest task four times and was rate-limited on two more, while GLM 5.3 Flash passed each on its first try in 9 to 20 s.
