@@ -899,7 +899,7 @@ class HookFields(unittest.TestCase):
     def test_hash_is_the_sha256_of_the_sorted_compact_json_with_defaults_filled_in(self):
         h = fc_harness._codex_hash
         c = {"type": "command", "command": '"/c/bin/compose" guard'}
-        self.assertEqual(h("PreToolUse", {"matcher": "Bash", "hooks": [{**c, "timeout": 10}]}), self.digest("pre_tool_use", "Bash", [{**c, "timeout": 10}]))
+        self.assertEqual(h("PreToolUse", {"matcher": "Bash", "hooks": [{**c, "timeout": 10}]}), self.digest("pre_tool_use", "Bash", [{**c, "timeout": 10, "async": False}]))
         self.assertEqual(h("UserPromptSubmit", {"hooks": [c]}), self.digest("user_prompt_submit", None, [{**c, "timeout": 600, "async": False}]))
         full = {**c, "timeout": 5, "async": True, "statusMessage": "checking"}
         self.assertEqual(h("SessionStart", {"matcher": "compact", "hooks": [full, c]}), self.digest("session_start", "compact", [full, {**c, "timeout": 600, "async": False}]))
