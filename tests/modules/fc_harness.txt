@@ -11,6 +11,7 @@ harness_of
 model_id
 rows
 installed
+detected
 home_dir
 signed_in
 login_message
